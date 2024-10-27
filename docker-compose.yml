@@ -1,0 +1,78 @@
+services:
+  tracker-task-apps:
+    build: .
+    container_name: tracker-task-apps
+    environment:
+      DB_HOST: postgres
+      REDIS_HOST: redis
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - tracker-app-network
+
+
+
+  postgres:
+    image: postgres
+    container_name: tracker-app-db
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_PORT=${DB_PORT}
+    ports:
+      - "5432:5432"
+    volumes:
+      - tracker-app-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tracker-app-network
+
+
+
+  redis:
+    image: redis
+    container_name: tracker-app-redis
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_DATABASE=${REDIS_DATABASE}
+    command:
+      - /bin/sh
+      - -c
+      - redis-server --requirepass "$${REDIS_PASSWORD:?REDIS_PASSWORD variable is not set}"
+
+    ports:
+      - "6379:6379"
+    networks:
+      - tracker-app-network
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+
+
+volumes:
+  tracker-app-db:
+
+
+
+
+networks:
+  tracker-app-network:
+    driver: bridge
